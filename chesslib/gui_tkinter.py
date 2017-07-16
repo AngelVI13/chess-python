@@ -74,17 +74,21 @@ class BoardGuiTk(tk.Frame):
             self.refresh()
             self.draw_pieces()
             return
-
+            
         self.hilight(position)
         self.refresh()
 
     def move(self, p1, p2):
-        # print "moving piece"
         piece = self.chessboard[p1]
         dest_piece = self.chessboard[p2]
         if dest_piece is None or dest_piece.color != piece.color:
             try:
                 self.chessboard.move(p1,p2)
+                # evaluate the board for a checkmate after each move
+                evaluation = self.chessboard.evaluate_board()
+                if evaluation != "":
+                    self.label_status["text"] = evaluation
+                    return
             except board.ChessError as error:
                 self.label_status["text"] = error.__class__.__name__
             else:
@@ -133,6 +137,13 @@ class BoardGuiTk(tk.Frame):
                     self.canvas.create_rectangle(x1, y1, x2, y2, outline="black", fill="spring green", tags="square")
                 else:
                     self.canvas.create_rectangle(x1, y1, x2, y2, outline="black", fill=color, tags="square")
+
+                if self.chessboard.in_check[1]:
+                    king_pos_letter = self.chessboard.get_king_position(self.chessboard.in_check[0])
+                    king_pos_num = self.chessboard.number_notation(king_pos_letter)
+                    if (row, col) == king_pos_num:
+                        self.canvas.create_rectangle(x1, y1, x2, y2, outline="black", fill="red", tags="square")
+
                 color = self.color1 if color == self.color2 else self.color2
         for name in self.pieces:
             self.placepiece(name, self.pieces[name][0], self.pieces[name][1])
@@ -154,6 +165,9 @@ class BoardGuiTk(tk.Frame):
                 self.placepiece(piecename, x, y)
 
     def reset(self):
+        ### remove the following from here ###########
+        self.chessboard.in_check = ("", False)  # resets the in_check drawing flag
+
         self.chessboard.load(board.FEN_STARTING)
         self.refresh()
         self.draw_pieces()

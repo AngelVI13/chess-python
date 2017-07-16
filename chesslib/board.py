@@ -42,7 +42,8 @@ class Board(dict):
     fullmove_number = 1
     history = []
 
-    in_check = False
+    in_check = ("", False)
+    in_mate = ("", False)
 
     def __init__(self, fen = None):
         if fen is None: self.load(FEN_STARTING)
@@ -94,8 +95,10 @@ class Board(dict):
             self._do_move(p1, p2)
             self._finish_move(piece, dest, p1,p2)
             if self.is_in_check(enemy):
-                print enemy + " is in Check"
-                self.in_check = True
+                # print enemy + " is in Check"
+                self.in_check = (enemy, True)
+            else:
+                self.in_check = ("", False)  # resets the in_check drawing flag
 
 
     def get_enemy(self, color):
@@ -148,7 +151,24 @@ class Board(dict):
         for coord in self.keys():
             if (self[coord] is not None) and self[coord].color == color:
                 moves = self[coord].possible_moves(coord)
-                if moves: result += moves
+                if moves:
+                    result += moves
+        return result
+
+    ########################################################
+    def all_possible_piece_moves(self, color):
+        '''
+            Return a dict of `color`'s possible moves
+            In the format of POSITION: ALL POSSIBLE MOVES FOR THE POSITION(PIECE AT POSITION)
+            Does not check for check.
+        '''
+        if(color not in ("black", "white")): raise InvalidColor
+        result = {}
+        for coord in self.keys():
+            if (self[coord] is not None) and self[coord].color == color:
+                moves = self[coord].possible_moves(coord)
+                if moves:
+                    result[coord] = moves
         return result
 
     def occupied(self, color):
@@ -181,6 +201,30 @@ class Board(dict):
         king = self.get_king(color)
         enemy = self.get_enemy(color)
         return king in map(self.__getitem__, self.all_possible_moves(enemy))
+
+    def evaluate_board(self):
+        """
+            Evaluates the board after each move
+            in order to catch a checkmate scenario
+        """
+        board_status = ""
+        # If a side is in check
+        if self.in_check[1]:
+            side_in_check = self.in_check[0]
+            self.in_mate = (side_in_check, True)
+            # checks if the side in check has any possible moves that can escape the check
+            side_possible_moves = self.all_possible_piece_moves(side_in_check)
+            for piece, possible_move in side_possible_moves.iteritems():
+                for move in possible_move: # possible_move is an array with all possible moves for this piece
+                    if self.is_in_check_after_move(piece, move) is False:
+                        # if a saving move is found then reset the in_mate variable
+                        self.in_mate = ("", False)
+                        return # if even 1 move is found in which the side in check escapes the check then return
+                        
+            # If the side in check has no possible moves or cannot escape check then declare mate
+            if self.in_mate[1]:
+                board_status = side_in_check + " is in checkmate!"
+                return board_status
 
     def letter_notation(self,coord):
         if not self.is_in_bounds(coord): return
