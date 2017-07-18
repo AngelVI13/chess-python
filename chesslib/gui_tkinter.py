@@ -1,7 +1,12 @@
 import board
-import pieces
+# import pieces
 import Tkinter as tk
-from PIL import Image, ImageTk
+from PIL import ImageTk  # Image,
+
+########
+import time
+########
+
 
 class BoardGuiTk(tk.Frame):
     pieces = {}
@@ -52,7 +57,6 @@ class BoardGuiTk(tk.Frame):
         self.button_quit.pack(side=tk.RIGHT, in_=self.statusbar)
         self.statusbar.pack(expand=False, fill="x", side='bottom')
 
-
     def click(self, event):
 
         # Figure out which square we've clicked
@@ -62,7 +66,7 @@ class BoardGuiTk(tk.Frame):
         current_row = 7 - (event.y / row_size)
 
         position = self.chessboard.letter_notation((current_row, current_column))
-        piece = self.chessboard[position]
+        # piece = self.chessboard[position]
 
         if self.selected_piece:
             if self.chessboard.number_notation(position) != self.selected:
@@ -83,40 +87,44 @@ class BoardGuiTk(tk.Frame):
         dest_piece = self.chessboard[p2]
         if dest_piece is None or dest_piece.color != piece.color:
             try:
-                self.chessboard.move(p1,p2)
+                self.chessboard.move(p1, p2)
                 # evaluate the board for a checkmate after each move
+                start = time.time()
                 evaluation = self.chessboard.evaluate_board()
+                print time.time() - start, 's evaluation'
                 if evaluation != "":
                     self.label_status["text"] = evaluation
                     return
             except board.ChessError as error:
                 self.label_status["text"] = error.__class__.__name__
             else:
-                self.label_status["text"] = " " + piece.color.capitalize() +": "+ p1 + p2
-
+                self.label_status["text"] = " " + piece.color.capitalize() + ": " + p1 + p2
 
     def hilight(self, pos):
         piece = self.chessboard[pos]
         if piece is not None and (piece.color == self.chessboard.player_turn):
             self.selected = self.chessboard.number_notation(pos)
-            # print self.chessboard.number_notation(pos)
             self.selected_piece = (self.chessboard[pos], pos)
-            self.hilighted = map(self.chessboard.number_notation, (self.chessboard[pos].possible_moves(pos)))
+            # only highlights legal moves and NOT all possible piece moves
+            start = time.time()
+            piece_legal_moves = self.chessboard.all_legal_piece_moves(pos)
+            print time.time() - start, 's highlight'
+            self.hilighted = map(self.chessboard.number_notation, piece_legal_moves)    
 
     def addpiece(self, name, image, row=0, column=0):
-        '''Add a piece to the playing board'''
-        self.canvas.create_image(0,0, image=image, tags=(name, "piece"), anchor="c")
+        # Add a piece to the playing board
+        self.canvas.create_image(0, 0, image=image, tags=(name, "piece"), anchor="c")
         self.placepiece(name, row, column)
 
     def placepiece(self, name, row, column):
-        '''Place a piece at the given row/column'''
+        # Place a piece at the given row/column
         self.pieces[name] = (row, column)
         x0 = (column * self.square_size) + int(self.square_size/2)
         y0 = ((7-row) * self.square_size) + int(self.square_size/2)
         self.canvas.coords(name, x0, y0)
 
-    def refresh(self, event={}):
-        '''Redraw the board'''
+    def refresh(self, event=None):
+        # Redraw the board
         if event:
             xsize = int((event.width-1) / self.columns)
             ysize = int((event.height-1) / self.rows)
@@ -133,7 +141,7 @@ class BoardGuiTk(tk.Frame):
                 y2 = y1 + self.square_size
                 if (self.selected is not None) and (row, col) == self.selected:
                     self.canvas.create_rectangle(x1, y1, x2, y2, outline="black", fill="orange", tags="square")
-                elif(self.hilighted is not None and (row, col) in self.hilighted):
+                elif self.hilighted is not None and (row, col) in self.hilighted:
                     self.canvas.create_rectangle(x1, y1, x2, y2, outline="black", fill="spring green", tags="square")
                 else:
                     self.canvas.create_rectangle(x1, y1, x2, y2, outline="black", fill=color, tags="square")
@@ -153,25 +161,26 @@ class BoardGuiTk(tk.Frame):
     def draw_pieces(self):
         self.canvas.delete("piece")
         for coord, piece in self.chessboard.iteritems():
-            x,y = self.chessboard.number_notation(coord)
+            x, y = self.chessboard.number_notation(coord)
             if piece is not None:
-                filename = "img/%s%s.png" % (piece.color, piece.abbriviation.lower())
-                piecename = "%s%s%s" % (piece.abbriviation, x, y)
+                filename = "img/%s%s.png" % (piece.color, piece.abbreviation.lower())
+                piecename = "%s%s%s" % (piece.abbreviation, x, y)
 
-                if(filename not in self.icons):
+                if filename not in self.icons:
                     self.icons[filename] = ImageTk.PhotoImage(file=filename, width=32, height=32)
 
                 self.addpiece(piecename, self.icons[filename], x, y)
                 self.placepiece(piecename, x, y)
 
     def reset(self):
-        ### remove the following from here ###########
+        # remove the following from here ###########
         self.chessboard.in_check = ("", False)  # resets the in_check drawing flag
 
         self.chessboard.load(board.FEN_STARTING)
         self.refresh()
         self.draw_pieces()
         self.refresh()
+
 
 def display(chessboard):
     root = tk.Tk()
@@ -181,8 +190,5 @@ def display(chessboard):
     gui.pack(side="top", fill="both", expand="true", padx=4, pady=4)
     gui.draw_pieces()
 
-    #root.resizable(0,0)
+    # root.resizable(0,0)
     root.mainloop()
-
-if __name__ == "__main__":
-    display()
